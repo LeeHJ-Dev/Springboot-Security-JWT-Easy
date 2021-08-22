@@ -45,7 +45,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .disable()
             .httpBasic()
                 .disable()
+            // JwtAuthenticationFilter Filter 적용.
             .addFilter(new JwtAuthenticationFilter(authenticationManager()))   //AuthenticationManager
+            // JwtAuthorizationFilter Filter 적용
             .addFilter(new JwtAuthorizationFilter(authenticationManager(),userRepository))
             .authorizeRequests()
             .antMatchers("/api/v1/user/**")
