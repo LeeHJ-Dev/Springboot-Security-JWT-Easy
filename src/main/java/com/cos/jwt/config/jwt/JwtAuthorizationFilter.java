@@ -26,7 +26,7 @@ import java.io.IOException;
  *  - 권한이나 인증이 필요한 특정 주소를 사용자가 요청했을 경우 BasicAuthenticationFilter 호출한다.
  *  - JwtAuthorizationFilter extends BasicAuthenticationFilter
  *  - doFilterInternal() Method Call.
- * 
+ *
  * 2. Spring Security Config AddFilter
  *   ex. addFilter(new JwtAuthorizationFilter(authenticationManager(),userRepository))
  *
