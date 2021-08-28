@@ -17,6 +17,17 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.context.SecurityContextPersistenceFilter;
 import org.springframework.web.filter.CorsFilter;
 
+/**
+ * Spring Security Login Process
+ * 1. 사용자가 id, password 입력 후 로그인 시도.
+ * 2. AuthenticationFilter -> UsernamePasswordAuthenticationToken 생성 후 AuthenticationManager 전달한다.
+ * 3. AuthenticationManager(는) 등록된 AuthenticationProvider(들)을 조회하여 사용자 정보 인증을 요구한다.
+ * 4. AuthenticationProvider(는) UserDetailsService(PrincipalDetailsService)를 통해서 입력받은 사용자 정보(username,email..)를
+ *    User Database 조회하여 사용자정보를 UserDetails(PrincipalDetails) VO에 생성 및 사용자 정보를 이용하여 입력된 id, password 비교 후
+ *    사용자 인증에 성공한 경우 UsernameAuthenticationToken 생성 후 AuthenticationManager 반환한다.
+ * 5. AuthenticationManager(는) UsernameAuthenticationToken(을) AuthenticationFilter(에게) 전달한다.
+ * 6. AuthenticationFilter(는) 전달받은 UsernameAuthenticationToken(을) LoginSuccessHandler(로) 전송하고 SecurityContextHolder(에) 저장한다.
+ */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

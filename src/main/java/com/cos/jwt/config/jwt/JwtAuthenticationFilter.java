@@ -20,27 +20,77 @@ import java.io.IOException;
 import java.util.Date;
 
 /**
- * 스프링 시큐리티에서 UsernamePasswordAuthenticationFilter 있음
- * 1. /login 요청해서 username, password Post 전송
- * 2 UsernamePasswordAuthenticationFilter 동작을 함
+ * 사용자가 로그인(폼인증)을 진행하는 경우 UsernamePasswordAuthenticationFilter 호출된다.
+ * UsernamePasswordAuthenticationFilter 필터는 사용자의 요청을 받은 id, password(를) 저장할 수 있는
+ * Authentication 인증객체를 생성하고 AuthenticationManager(에게) 인증처리를 위임한다.
+ *  - JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter
+ * 인증처리를 위임받은 AuthenticationManager(는) 인증의 전반적으로 관리하지만 실제로 인증역할을 하지 않고,
+ * AuthenticationProvider(에게) 위임하게 된다. 즉, AuthenticationManager(는) 사용자가 입력한 id,password
+ * 정보에 대해서 검증을 하지 않는다는 말이다.
+ * AuthenticationManager(는) 내부적으로 <List>가 있는데 한개 이상의 AuthenticationProvider(를) <List>에
+ * 저장하고 현재 인증에 필요한 AuthenticationProvider(를) 호출하여 인증을 위임하게 된다.
  *
+ * AuthenticationProvider(는) AuthenticationManager(로) 부터 전달받은 Authentication(인증객체) 이용해서
+ * 사용자의 id, password 정보를 검증한다. UserDetailsService(에서) 유저객체를 전달받아서 검증을 하게 된다.
+ * 만약, 유저객체가 존재한다면 유저객체를 return 받고 없다면 UsernameNotFoundException 호출되어 예외가 발생한다.
+ * 그리고 그 예외는 UsernamePasswordAuthenticationFilter(에서) 받아서 FailHandler 후속처리를 하게 된다.
  *
- * - UsernamePasswordAuthenticationFilter Class 인증처리 담당 클래스
- * 1. 사용자가 로그인을 진행하는 경우 UsernamePasswordAuthenticationFilter 기능을 대신하는 커스텀 클래스를 사용해서 필터를 추가한다.
- *  ex. JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter
+ * 유저객체 검증을 진행하고 사용자 id에 맞는 유저객체가 존재한다면 AuthenticationProvider(에) UserDetails
+ * 타입으로 반환하게 된다. 이후에 password 검증할 때 반환받은 UserDetails 타입의 객체정보와 사용자가 로그인할 떄
+ * 입력한 password 일치여부를 확인한다.
+ *
+ * password(가) 일치하는 않는경우 badcredentialsexception(이) 발생하게 되고 최종적으로 인증이 실패하게 된다.
+ * id, password 검증이 성공하게 되면 AuthenticationProvider 여기서 인증에 성공한 결과는 담는데
+ * Authentication 인증객체를 새로 생성하며 User 객체와 권한정보를 저장하며 AuthenticationManager(에게) 반환한다.
+ * 인증결과를 담은 Authentication(인증객체)는 다시 UsernamePasswordAuthenticationFilter(에게) 전달하고
+ * Session SecurityContext(에) Authentication 저장한다.
+ *
+ * 1. Client
+ *  요청) Http Request(id, pass)
+ *  응답) 인증실패 or 인증완료
+ *
+ * 2. UsernamePasswordAuthenticationFilter
+ *  요청) 입력한 id,pass 이용해서 Authentication(인증객체) 생성.
+ *  응답) SecurityContext 인증객체 저장
+ *
+ * 3. AuthenticationManager
+ *  요청) 인증의 전반적인 관리, 실제 인증처리하지 않고 Authentication(인증객체)를 적절한 AuthenticationProvider(에게) 인증 위임.
+ *  응답) Authentication
+ *
+ * 4. AuthenticationProvider
+ *  요청) 실제 인증처리를 진행, 사용자의 유효성 검사(id, password) UserDetailsService Method Call
+ *  응답) Authentication(UserDetails + Authorities)
+ *
+ * 5. UserDetailsService
+ *  요청) loadUserByName(String username) 함수에서 Repository 사용자 정보 조회
+ *  응답) UserDetails Object Return
+ *
+ * 6. Repository
+ *  요청) User Database Select
+ *  응답) User Object return
+ *
+ * 7. UserDetails
+ *  요청) 사용자정보 VO(Value Object)
+ *
  * 2. 인증 성공 실패에 따라 AuthenticationSuccessHandler or AuthenticationFailureHandler Handler 최종적으로 호출한다.
  * 3. 인증이 성공적으로 진행했다면 리턴값으로 UsernamePasswordAuthenticationToken(을) 세션에 저장한다.
- * 4. SecurityConfig extends WebSecurityConfigurerAdapter
- *  - addFilter(new JwtAuthenticationFilter(authenticationManager())
- *
- *
- *
  */
-@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
     private final AuthenticationManager authenticationManager;
 
-    // /login 요청을 하면 로그인 시도를 위해서 실행되는 함수
+    /**
+     * AuthenticationManager Interface.
+     *  -
+     * @param authenticationManager
+     */
+    public JwtAuthenticationFilter(AuthenticationManager authenticationManager) {
+        this.authenticationManager = authenticationManager;
+    }
+
+    public JwtAuthenticationFilter(AuthenticationManager authenticationManager, AuthenticationManager authenticationManager1) {
+        super(authenticationManager);
+        this.authenticationManager = authenticationManager1;
+    }
 
     /**
      * UsernamePasswordAuthenticationFilter Class Method attemptAuthentication(request, response) 인자값으로 사용자의 username, password
@@ -53,7 +103,6 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {
         System.out.println("JwtAuthenticationFilter.attemptAuthentication - start ");
-
 
         ObjectMapper objectMapper = new ObjectMapper();
         try {
